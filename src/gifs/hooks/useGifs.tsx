@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Gif } from "../interfaces/gif.interface.ts";
 
 import { getGifByQuery } from "../actions/get-gifs-by-query.action.ts";
@@ -6,12 +6,25 @@ import { getGifByQuery } from "../actions/get-gifs-by-query.action.ts";
 interface useGifsProps {
   gifsList: Gif[];
 }
+
+// const gifsCache: Record<string, Gif[]> = {};
+
 export const useGifs = ({ gifsList }: useGifsProps) => {
   const [previousTerms, setPreviousTerms] = useState<string[]>([]);
   const [gifs, setGifs] = useState<Gif[]>(gifsList);
 
-  const handleTermClicked = (term: string) => {
-    console.log({ term });
+  // Referencias mutables que no causan re-render.
+  const gifsCache = useRef<Record<string, Gif[]>>({});
+
+  const handleTermClicked = async (term: string) => {
+    // Para acceder a los valores que estan dentro
+    if (gifsCache.current[term]) {
+      setGifs(gifsCache.current[term]);
+      return;
+    }
+
+    const gifs = await getGifByQuery(term);
+    setGifs(gifs);
   };
 
   const handleSearch = async (query: string = "") => {
@@ -25,12 +38,14 @@ export const useGifs = ({ gifsList }: useGifsProps) => {
     const newGifs = await getGifByQuery(query);
 
     setGifs(newGifs);
+
+    gifsCache.current[query] = newGifs;
   };
 
   return {
-    previousTerms,
     gifs,
-    handleTermClicked,
     handleSearch,
+    handleTermClicked,
+    previousTerms,
   };
 };
